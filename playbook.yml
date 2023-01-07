@@ -7,7 +7,7 @@
   vars:
     default_container_name: mywebapps
     default_container_image: mywebapps
-    dockerfile_path : https://raw.githubusercontent.com/vchevychelov/boxfuse/master/deploy/Dockerfile
+    dockerfile_path : ./Dockerfile
   tasks:
 
   - name: Present docker
@@ -26,17 +26,11 @@
       enabled: true
       name: docker
 
-  - name: Download dockerfile
-    ansible.builtin.get_url:
-      url: "{{ dockerfile_path }}"
-      dest: /opt/docker
-      mode: '0440'
-
   - name: build container image
     docker_image:
       name: "{{ default_container_name }}"
       build:
-        path: /opt/docker
+        path: "{{ dockerfile_path }}"
       state: present
       source: build
 
