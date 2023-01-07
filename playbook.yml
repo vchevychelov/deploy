@@ -1,0 +1,101 @@
+---
+- hosts: dev01
+  remote_user: user
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars:
+    default_container_name: mywebapps
+    default_container_image: mywebapps
+    dockerfile_path : https://raw.githubusercontent.com/vchevychelov/boxfuse/master/deploy/Dockerfile
+  tasks:
+
+  - name: Present docker
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - docker.io
+      - python3-docker
+    become: yes
+
+  - name: Make sure a service is running
+    ansible.builtin.systemd:
+      state: started
+      enabled: true
+      name: docker
+
+  - name: Download dockerfile
+    ansible.builtin.get_url:
+      url: "{{ dockerfile_path }}"
+      dest: /opt/docker
+      mode: '0440'
+
+  - name: build container image
+    docker_image:
+      name: "{{ default_container_name }}"
+      build:
+        path: /opt/docker
+      state: present
+      source: build
+
+  - name: archive container image as a tarball
+    docker_image:
+      name: "{{ default_container_image }}"
+      archive_path: /opt/docker/{{ default_container_name }}.tar
+      source: pull
+      state: present
+
+  - name: fetch archived image
+    fetch:
+      src: /opt/docker/{{ default_container_name }}.tar
+      dest: ./{{ default_container_name }}.tar
+      flat: true
+
+- hosts: stage01
+  gather_facts: no
+  remote_user: user
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars:
+    default_container_name: mywebapps
+    default_container_image: mywebapps
+
+  tasks:
+
+  - name: Present docker
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - docker.io
+      - python3-docker
+    become: yes
+
+  - name: Make sure a service is running
+    ansible.builtin.systemd:
+      state: started
+      enabled: true
+      name: docker
+
+  - name: copy tarball to host
+    copy:
+      src: ./{{ default_container_name }}.tar
+      dest: /root/{{ default_container_name }}.tar
+
+  - name: load container from tarball
+    docker_image:
+      name: "{{ default_container_name }}"
+      load_path: /root/{{ default_container_name }}.tar
+      state: present
+      source: load
+
+  - name: Container present
+    docker_container:
+      name: "{{ default_container_name }}"
+      image: "{{ default_container_image }}"
+      state: started
+      restart: yes
+      ports:
+       - "8080:8080"
