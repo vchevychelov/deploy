@@ -29,27 +29,27 @@
   - name: Download dockerfile
     ansible.builtin.get_url:
       url: "{{ dockerfile_path }}"
-      dest: /opt/docker
+      dest: /tmp/
       mode: '0440'
 
   - name: build container image
     docker_image:
       name: "{{ default_container_name }}"
       build:
-        path: /opt/docker
+        path: /tmp/
       state: present
       source: build
 
   - name: archive container image as a tarball
     docker_image:
       name: "{{ default_container_image }}"
-      archive_path: /opt/docker/{{ default_container_name }}.tar
+      archive_path: /tmp/{{ default_container_name }}.tar
       source: pull
       state: present
 
   - name: fetch archived image
     fetch:
-      src: /opt/docker/{{ default_container_name }}.tar
+      src: /tmp/{{ default_container_name }}.tar
       dest: ./{{ default_container_name }}.tar
       flat: true
 
